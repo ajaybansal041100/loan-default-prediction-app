@@ -3,6 +3,7 @@ import joblib
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import xgboost as xgb
 
 # ------------------------------------------------
 # Page Config
@@ -51,11 +52,15 @@ html, body, [class*="css"]  {
 </style>
 """, unsafe_allow_html=True)
 
+# Load preprocessor
+preprocessor = joblib.load("preprocessor.pkl")
+
 # ------------------------------------------------
 # Load Model
 # ------------------------------------------------
 
-model = joblib.load("loan_default_xgb_model.pkl")
+model = xgb.XGBClassifier()
+model.load_model("model.json")
 # ------------------------------------------------
 # Header
 # ------------------------------------------------
@@ -114,7 +119,8 @@ if predict_button:
         "HasCoSigner": [has_cosigner]
     })
 
-    probability = float(model.predict_proba(input_data)[0][1])
+    processed_data = preprocessor.transform(input_data)
+    probability = float(model.predict_proba(processed_data)[0][1])
 
     # ------------------------------------------------
     # Gauge Chart
