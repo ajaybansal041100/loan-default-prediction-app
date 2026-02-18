@@ -3,6 +3,7 @@ import joblib
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import xgboost as xgb
 
 # ------------------------------------------------
 # Page Config
@@ -54,7 +55,9 @@ html, body, [class*="css"]  {
 # ------------------------------------------------
 # Load Model
 # ------------------------------------------------
-model = joblib.load("loan_default_xgb_model.pkl")
+
+model = xgb.XGBClassifier()
+model.load_model("model.json")
 
 # ------------------------------------------------
 # Header
