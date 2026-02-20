@@ -69,20 +69,25 @@ def apply_business_rules(age, employment_type, dti_ratio,
                          income, loan_amount):
 
     # -----------------------------------------
-    # Global Age Policy
+    # Global Age Policy (Hard Cutoff)
     # -----------------------------------------
-    retirement_age = 60
-    age_at_maturity = age + (loan_term / 12)
 
     if age < 21:
         return "REJECT", "Applicant below minimum legal age"
 
     if age > 55:
-        return "REVIEW", "Applicant close to retirement age"
+        return "REJECT", "Applicants above 55 years are not eligible for loans"
+
+    retirement_age = 60
+    age_at_maturity = age + (loan_term / 12)
+
+    if age_at_maturity > retirement_age:
+        return "REVIEW", "Loan extends beyond retirement age"
 
     # -----------------------------------------
-    # Credit Score Bands (Realistic)
+    # Credit Score Bands
     # -----------------------------------------
+
     if credit_score < 550:
         return "REJECT", "Very poor credit history"
 
@@ -90,18 +95,22 @@ def apply_business_rules(age, employment_type, dti_ratio,
         return "HIGH_RISK", "Subprime credit score"
 
     # -----------------------------------------
-    # Loan-to-Income Ratio (Important Metric)
+    # Loan-to-Income Ratio
     # -----------------------------------------
+
     if income > 0:
         lti_ratio = loan_amount / income
+
         if lti_ratio > 5:
             return "REJECT", "Loan amount too high compared to income"
+
         if lti_ratio > 3:
             return "HIGH_RISK", "High Loan-to-Income ratio"
 
     # -----------------------------------------
-    # DTI (Debt-to-Income) Bands
+    # Debt-to-Income Ratio
     # -----------------------------------------
+
     if dti_ratio > 0.65:
         return "REJECT", "Excessive Debt-to-Income ratio"
 
@@ -111,6 +120,7 @@ def apply_business_rules(age, employment_type, dti_ratio,
     # -----------------------------------------
     # Employment Stability
     # -----------------------------------------
+
     if employment_type == "Unemployed":
         if loan_purpose in ["Auto", "Business"]:
             return "REJECT", "Stable income required"
@@ -121,28 +131,28 @@ def apply_business_rules(age, employment_type, dti_ratio,
     # Loan Purpose Specific Policies
     # -----------------------------------------
 
-    # 🚗 AUTO LOAN
+    # 🚗 AUTO
     if loan_purpose == "Auto":
         if loan_term > 84:
             return "REVIEW", "Auto tenure above standard limit"
         if credit_score < 620:
             return "HIGH_RISK", "Auto loan with weak credit profile"
 
-    # 🏠 HOME LOAN
+    # 🏠 HOME
     if loan_purpose == "Home":
         if loan_term > 360:
             return "REVIEW", "Home tenure unusually long"
         if dti_ratio > 0.45:
             return "HIGH_RISK", "High DTI for mortgage approval"
 
-    # 💼 BUSINESS LOAN
+    # 💼 BUSINESS
     if loan_purpose == "Business":
         if credit_score < 650:
             return "HIGH_RISK", "Business loans require stronger credit"
-        if lti_ratio > 4:
+        if income > 0 and lti_ratio > 4:
             return "REVIEW", "Aggressive business leverage"
 
-    # 🎓 EDUCATION LOAN
+    # 🎓 EDUCATION
     if loan_purpose == "Education":
         if has_cosigner == "No" and credit_score < 680:
             return "REJECT", "Co-signer required for this profile"
