@@ -77,9 +77,6 @@ def apply_business_rules(age, employment_type, dti_ratio,
     if age < 21:
         return "REJECT", "Applicant below minimum legal age"
 
-    if age_at_maturity > retirement_age:
-        return "REVIEW", "Loan extends beyond retirement age"
-
     if age > 55:
         return "REVIEW", "Applicant close to retirement age"
 
