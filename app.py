@@ -216,8 +216,15 @@ if predict_button:
     probability = float(model.predict_proba(processed_data)[0][1])
 
     rule_flag, rule_message = apply_business_rules(
-        age, employment_type, dti_ratio,
-        loan_term, loan_purpose, has_cosigner
+    age,
+    employment_type,
+    dti_ratio,
+    loan_term,
+    loan_purpose,
+    has_cosigner,
+    credit_score,
+    income,
+    loan_amount
     )
 
     # ------------------------------------------------
