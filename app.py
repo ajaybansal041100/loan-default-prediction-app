@@ -52,20 +52,113 @@ html, body, [class*="css"]  {
 </style>
 """, unsafe_allow_html=True)
 
-# Load preprocessor
+# ------------------------------------------------
+# Load Preprocessor & Model
+# ------------------------------------------------
 preprocessor = joblib.load("preprocessor.pkl")
-
-# ------------------------------------------------
-# Load Model
-# ------------------------------------------------
 
 model = xgb.XGBClassifier()
 model.load_model("model.json")
+
+# ------------------------------------------------
+# Business Rule Engine
+# ------------------------------------------------
+def apply_business_rules(age, employment_type, dti_ratio,
+                         loan_term, loan_purpose,
+                         has_cosigner, credit_score,
+                         income, loan_amount):
+
+    # -----------------------------------------
+    # Global Age Policy
+    # -----------------------------------------
+    retirement_age = 60
+    age_at_maturity = age + (loan_term / 12)
+
+    if age < 21:
+        return "REJECT", "Applicant below minimum legal age"
+
+    if age_at_maturity > retirement_age:
+        return "REVIEW", "Loan extends beyond retirement age"
+
+    if age > 55:
+        return "REVIEW", "Applicant close to retirement age"
+
+    # -----------------------------------------
+    # Credit Score Bands (Realistic)
+    # -----------------------------------------
+    if credit_score < 550:
+        return "REJECT", "Very poor credit history"
+
+    if credit_score < 600:
+        return "HIGH_RISK", "Subprime credit score"
+
+    # -----------------------------------------
+    # Loan-to-Income Ratio (Important Metric)
+    # -----------------------------------------
+    if income > 0:
+        lti_ratio = loan_amount / income
+        if lti_ratio > 5:
+            return "REJECT", "Loan amount too high compared to income"
+        if lti_ratio > 3:
+            return "HIGH_RISK", "High Loan-to-Income ratio"
+
+    # -----------------------------------------
+    # DTI (Debt-to-Income) Bands
+    # -----------------------------------------
+    if dti_ratio > 0.65:
+        return "REJECT", "Excessive Debt-to-Income ratio"
+
+    if dti_ratio > 0.5:
+        return "HIGH_RISK", "High Debt burden"
+
+    # -----------------------------------------
+    # Employment Stability
+    # -----------------------------------------
+    if employment_type == "Unemployed":
+        if loan_purpose in ["Auto", "Business"]:
+            return "REJECT", "Stable income required"
+        else:
+            return "REVIEW", "No active income source"
+
+    # -----------------------------------------
+    # Loan Purpose Specific Policies
+    # -----------------------------------------
+
+    # 🚗 AUTO LOAN
+    if loan_purpose == "Auto":
+        if loan_term > 84:
+            return "REVIEW", "Auto tenure above standard limit"
+        if credit_score < 620:
+            return "HIGH_RISK", "Auto loan with weak credit profile"
+
+    # 🏠 HOME LOAN
+    if loan_purpose == "Home":
+        if loan_term > 360:
+            return "REVIEW", "Home tenure unusually long"
+        if dti_ratio > 0.45:
+            return "HIGH_RISK", "High DTI for mortgage approval"
+
+    # 💼 BUSINESS LOAN
+    if loan_purpose == "Business":
+        if credit_score < 650:
+            return "HIGH_RISK", "Business loans require stronger credit"
+        if lti_ratio > 4:
+            return "REVIEW", "Aggressive business leverage"
+
+    # 🎓 EDUCATION LOAN
+    if loan_purpose == "Education":
+        if has_cosigner == "No" and credit_score < 680:
+            return "REJECT", "Co-signer required for this profile"
+        if age > 40:
+            return "REVIEW", "Education loan age atypical"
+
+    return None, None
+
 # ------------------------------------------------
 # Header
 # ------------------------------------------------
 st.markdown('<div class="title">💳 AI Credit Risk Dashboard</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Real-time Loan Default Probability Prediction</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Hybrid ML + Rule-Based Loan Decision System</div>', unsafe_allow_html=True)
 st.divider()
 
 # ------------------------------------------------
@@ -94,7 +187,7 @@ has_cosigner = st.sidebar.selectbox("Has Co-Signer", ["Yes", "No"])
 predict_button = st.sidebar.button("🚀 Analyze Risk")
 
 # ------------------------------------------------
-# Main Dashboard
+# Main Layout
 # ------------------------------------------------
 col1, col2 = st.columns(2)
 
@@ -121,6 +214,11 @@ if predict_button:
 
     processed_data = preprocessor.transform(input_data)
     probability = float(model.predict_proba(processed_data)[0][1])
+
+    rule_flag, rule_message = apply_business_rules(
+        age, employment_type, dti_ratio,
+        loan_term, loan_purpose, has_cosigner
+    )
 
     # ------------------------------------------------
     # Gauge Chart
@@ -152,20 +250,30 @@ if predict_button:
         st.markdown('</div>', unsafe_allow_html=True)
 
     # ------------------------------------------------
-    # Risk Classification Card
+    # Risk Card
     # ------------------------------------------------
     with col2:
         st.markdown('<div class="glass">', unsafe_allow_html=True)
-        st.subheader("📊 Risk Assessment")
+        st.subheader("📊 Final Decision")
 
-        if probability > 0.6:
-            st.error("🔴 High Risk Applicant")
-        elif probability > 0.35:
-            st.warning("🟠 Moderate Risk Applicant")
+        if rule_flag == "REJECT":
+            st.error("⛔ Loan Rejected (Policy Rule)")
+            st.caption(rule_message)
+
+        elif rule_flag == "HIGH_RISK":
+            st.warning("⚠️ High Risk (Policy Override)")
+            st.caption(rule_message)
+            st.metric("ML Default Probability", f"{probability:.2%}")
+
         else:
-            st.success("🟢 Low Risk Applicant")
+            if probability > 0.6:
+                st.error("🔴 High Risk Applicant")
+            elif probability > 0.35:
+                st.warning("🟠 Moderate Risk Applicant")
+            else:
+                st.success("🟢 Low Risk Applicant")
 
-        st.metric("Default Probability", f"{probability:.2%}")
+            st.metric("Default Probability", f"{probability:.2%}")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
